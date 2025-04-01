@@ -3,14 +3,18 @@
 ## 📌 專案簡介
 **Deep-Translation-Video** 是一個基於多種開源技術的自動語音轉錄與翻譯系統。本專案結合 Whisper 進行語音轉錄、Argos Translate 進行多層翻譯，以及 Coqui XTTS-v2 進行語音合成，最終實現語音的跨語言翻譯與生成。
 
+## 💻 本專案開發平台
+- Python 3.10.11
+- Numpy 1.22.0
+- 電腦 Macbook Pro M4 Pro 24GB
+
 ## 🚀 主要功能
 - 🎙 **語音轉錄**：使用 OpenAI Whisper 轉錄音訊，支援多種語言。
 - 🌍 **語言翻譯**：利用 Argos Translate 進行多層語言翻譯。
 - 🔊 **語音合成**：使用 Coqui XTTS-v2 生成翻譯後的語音。
-- 📂 **批次處理**：可對資料夾內多個音訊檔案進行批次轉錄與翻譯。
-
+- 📂 **影片嘴形調整**：使用 video-retalking 進行翻譯後影片嘴形的調整
 ## 📦 依賴項目
-本專案基於以下開源技術：
+目前本專案基於以下開源技術：
 - [Argos Translate](https://github.com/argosopentech/argos-translate)
 - [Whisper](https://github.com/openai/whisper)
 - [Coqui XTTS-v2](https://huggingface.co/coqui/XTTS-v2)
@@ -18,7 +22,11 @@
 ## 🛠 安裝與環境設定
 ### 1️⃣ 克隆專案與下載必要資源
 ```bash
-git clone https://github.com/你的GitHub帳號/Deep-Translation-Video.git
+python3 -m venv .venv
+source .venv/bin/activate
+```
+```bash
+git clone https://github.com/if-else-master/Deep-Translation-Video.git
 cd Deep-Translation-Video
 ```
 
@@ -36,7 +44,7 @@ git clone https://github.com/sunny96087/Audio2Text.git
 git clone https://github.com/argosopentech/argos-translate.git
 ```
 
-### 4️⃣ 下載 XTTS-v2
+### 5️⃣ 下載 XTTS-v2
 ```bash
 git clone https://huggingface.co/coqui/XTTS-v2
 ```
