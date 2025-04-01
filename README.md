@@ -74,12 +74,12 @@ DEVICE = "cpu"  # 設定運行設備（"cpu" 或 "mps"）
 ```
 
 ## ✅ TODO List
-### 📂 環境設定
 - [x] 將影片的內容輸出成逐字稿(`Open-AI：Audio2Text-Whisper`)
 - [x] 將影片內容的逐字稿翻譯成不同語言的逐字稿(`Argos-Translate`)
 - [x] 下載 XTTS-v2 協助克隆影片中的音頻及輸出 mp3 等檔案(`git clone https://huggingface.co/coqui/XTTS-v2`)
 - [ ] 使用 Video-Retalking 進行影片翻譯後嘴型的校正 (`git clone https://github.com/OpenTalker/video-retalking.git`)
 - [ ] 使用 Dango-Translator 翻譯影片中的其他文字 如：簡報、照片文字等 (`https://github.com/PantsuDango/Dango-Translator.git`)
+- [ ] 專案 GUI 設計
 
 ## 📬 聯絡方式
 Gmail：rayc57429@gmail.com
