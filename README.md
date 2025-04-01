@@ -27,9 +27,13 @@ cd Deep-Translation-Video
 pip install -r requirements.txt
 ```
 
-### 3️⃣ 下載 Whisper 模型
+### 3️⃣ 下載 Audio2Text-Whisper 模型
 ```bash
-whisper.download_model("tiny")  # 或者 "base", "small", "medium", "large"
+git clone https://github.com/sunny96087/Audio2Text.git
+```
+### 4️⃣ 下載 Argos-Translate 協助翻譯文本
+```bash
+git clone https://github.com/argosopentech/argos-translate.git
 ```
 
 ### 4️⃣ 下載 XTTS-v2
@@ -71,28 +75,11 @@ DEVICE = "cpu"  # 設定運行設備（"cpu" 或 "mps"）
 
 ## ✅ TODO List
 ### 📂 環境設定
-- [ ] 克隆專案與下載必要資源
-- [ ] 安裝必要套件 (`pip install -r requirements.txt`)
-- [ ] 下載 Whisper 模型 (`whisper.download_model("tiny")`)
-- [ ] 下載 XTTS-v2 (`git clone https://huggingface.co/coqui/XTTS-v2`)
-
-### 🎤 使用流程
-- [ ] 將音訊檔案放入 `audio_files/` 資料夾
-- [ ] 執行 `main.py` 進行轉錄與翻譯
-- [ ] 檢查轉錄結果與翻譯文本
-- [ ] 生成翻譯後的語音
-- [ ] 確認 `output.wav` 是否正常播放
-
-### ⚙️ 進階設定
-- [ ] 調整 `MODEL_SIZE` 以使用不同的 Whisper 模型 (`tiny`, `base`, `small`, `medium`, `large`)
-- [ ] 設定 `LANGUAGE_MODE` 以選擇適合的語言 (`zh`, `zh-en`, `en`, `ja`)
-- [ ] 變更 `DEVICE` 以使用 CPU 或 MPS (`cpu`, `mps`)
-
-### 🚀 其他事項
-- [ ] 測試不同語言的音訊轉錄與翻譯效果
-- [ ] 改善翻譯準確性（調整 Argos Translate 的語言包）
-- [ ] 優化 XTTS-v2 的語音合成參數
-- [ ] 撰寫使用手冊與進一步的技術文件
+- [x] 將影片的內容輸出成逐字稿(`Open-AI：Audio2Text-Whisper`)
+- [x] 將影片內容的逐字稿翻譯成不同語言的逐字稿(`Argos-Translate`)
+- [x] 下載 XTTS-v2 協助克隆影片中的音頻及輸出 mp3 等檔案(`git clone https://huggingface.co/coqui/XTTS-v2`)
+- [ ] 使用 Video-Retalking 進行影片翻譯後嘴型的校正 (`git clone https://github.com/OpenTalker/video-retalking.git`)
+- [ ] 使用 Dango-Translator 翻譯影片中的其他文字 如：簡報、照片文字等 (`https://github.com/PantsuDango/Dango-Translator.git`)
 
 ## 📬 聯絡方式
 Gmail：rayc57429@gmail.com
