@@ -69,9 +69,35 @@ DEVICE = "cpu"  # 設定運行設備（"cpu" 或 "mps"）
 🔊 成功保存音頻到 output.wav
 ```
 
-## 📜 授權
-本專案基於 **MIT License** 授權，歡迎自由使用與修改。
+## ✅ TODO List
+### 📂 環境設定
+- [ ] 克隆專案與下載必要資源
+- [ ] 安裝必要套件 (`pip install -r requirements.txt`)
+- [ ] 下載 Whisper 模型 (`whisper.download_model("tiny")`)
+- [ ] 下載 XTTS-v2 (`git clone https://huggingface.co/coqui/XTTS-v2`)
+
+### 🎤 使用流程
+- [ ] 將音訊檔案放入 `audio_files/` 資料夾
+- [ ] 執行 `main.py` 進行轉錄與翻譯
+- [ ] 檢查轉錄結果與翻譯文本
+- [ ] 生成翻譯後的語音
+- [ ] 確認 `output.wav` 是否正常播放
+
+### ⚙️ 進階設定
+- [ ] 調整 `MODEL_SIZE` 以使用不同的 Whisper 模型 (`tiny`, `base`, `small`, `medium`, `large`)
+- [ ] 設定 `LANGUAGE_MODE` 以選擇適合的語言 (`zh`, `zh-en`, `en`, `ja`)
+- [ ] 變更 `DEVICE` 以使用 CPU 或 MPS (`cpu`, `mps`)
+
+### 🚀 其他事項
+- [ ] 測試不同語言的音訊轉錄與翻譯效果
+- [ ] 改善翻譯準確性（調整 Argos Translate 的語言包）
+- [ ] 優化 XTTS-v2 的語音合成參數
+- [ ] 撰寫使用手冊與進一步的技術文件
 
 ## 📬 聯絡方式
-如果有任何問題或改進建議，請開啟 Issue 或聯絡 [你的 GitHub 用戶名]！
+Gmail：rayc57429@gmail.com
+
+
+
+
 
