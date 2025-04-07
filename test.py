@@ -43,7 +43,7 @@ try:
     model.to(device)
 
     # 確保參考音頻檔案存在
-    speaker_wav = "XTTS-v2/samples/en_sample.wav"
+    speaker_wav = "audio_files/ch.mp3"
     if not os.path.exists(speaker_wav):
         print(f"錯誤：參考音頻文件 {speaker_wav} 不存在")
         exit(1)
