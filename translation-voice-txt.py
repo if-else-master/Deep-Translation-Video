@@ -102,6 +102,9 @@ class AudioProcessorApp:
         self.audio_path_var = tk.StringVar()
         ttk.Entry(file_frame, textvariable=self.audio_path_var, width=50).pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
         ttk.Button(file_frame, text="瀏覽", command=self.browse_input_file).pack(side=tk.LEFT, padx=5)
+        browse_folder_button = ttk.Button(file_frame, text="選擇資料夾批量處理", command=self.browse_input_folder)
+        browse_folder_button.pack(side=tk.LEFT, padx=5)
+        #folder_path = filedialog.askdirectory(title="選擇資料夾")
         
         # 輸入文件類型顯示
         self.input_type_var = tk.StringVar(value="未選擇檔案")
@@ -284,7 +287,33 @@ class AudioProcessorApp:
         self.log_text.insert(tk.END, f"[INFO] {message}\n")
         self.log_text.see(tk.END)
         print(message)
-    
+    def browse_input_folder(self):
+        folder_path = filedialog.askdirectory(title="選擇資料夾")
+        if not folder_path:
+            return
+
+        # 支援的副檔名
+        supported_exts = ('.wav', '.mp3', '.ogg', '.m4a', '.mp4', '.mov', '.mkv')
+
+        # 取得符合的檔案列表
+        files = [
+            os.path.join(folder_path, f)
+            for f in os.listdir(folder_path)
+            if f.lower().endswith(supported_exts)
+        ]
+
+        # 逐一處理檔案
+        for file_path in files:
+            if file_path:
+                self.audio_path_var.set(file_path)
+                self.log(f"已選擇音訊檔案: {file_path}")
+                # 確定文件類型
+                file_ext = os.path.splitext(file_path)[1].lower()                
+                # 清理之前可能存在的臨時檔案    
+                self.cleanup_temp_files()                
+                # 自動設置同一個檔案為參考語音
+                self.speaker_path_var.set(file_path)                
+
     def browse_input_file(self):
         """瀏覽並選擇輸入檔案（音訊或視頻）"""
         file_path = filedialog.askopenfilename(
@@ -295,7 +324,7 @@ class AudioProcessorApp:
                 ("視頻檔案", "*.mp4 *.mov *.mkv"),
                 ("所有檔案", "*.*")
             ]
-        )
+        )        
         if file_path:
             self.audio_path_var.set(file_path)
             
