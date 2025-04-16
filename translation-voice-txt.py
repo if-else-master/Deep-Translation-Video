@@ -218,12 +218,17 @@ class AudioProcessorApp:
         # 使用Notebook創建標籤頁
         self.output_tabs = ttk.Notebook(output_frame)
         self.output_tabs.pack(fill=tk.BOTH, expand=True)
+        # 日誌標籤頁
+        log_tab = ttk.Frame(self.output_tabs)
+        self.output_tabs.add(log_tab, text="處理日誌")
+        self.log_text = scrolledtext.ScrolledText(log_tab, wrap=tk.WORD, height=10)
+        self.log_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # 轉錄標籤頁
         trans_tab = ttk.Frame(self.output_tabs)
         self.output_tabs.add(trans_tab, text="轉錄")
         self.transcription_text = scrolledtext.ScrolledText(trans_tab, wrap=tk.WORD, height=10)
-        self.transcription_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.transcription_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)        
         
         # 翻譯1標籤頁
         trans1_tab = ttk.Frame(self.output_tabs)
@@ -235,13 +240,7 @@ class AudioProcessorApp:
         trans2_tab = ttk.Frame(self.output_tabs)
         self.output_tabs.add(trans2_tab, text="最終翻譯")
         self.translation2_text = scrolledtext.ScrolledText(trans2_tab, wrap=tk.WORD, height=10)
-        self.translation2_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        
-        # 日誌標籤頁
-        log_tab = ttk.Frame(self.output_tabs)
-        self.output_tabs.add(log_tab, text="處理日誌")
-        self.log_text = scrolledtext.ScrolledText(log_tab, wrap=tk.WORD, height=10)
-        self.log_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.translation2_text.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)         
         
         # 按鈕區域
         button_frame = ttk.Frame(main_frame)
@@ -453,6 +452,7 @@ class AudioProcessorApp:
             # 更新UI
             self.root.after(0, lambda: self.transcription_text.delete(1.0, tk.END))
             self.root.after(0, lambda: self.transcription_text.insert(tk.END, transcription))
+            self.log(transcription)
             self.log(f"📝 已完成轉錄")
             
             # 翻譯文本 (第一次)
