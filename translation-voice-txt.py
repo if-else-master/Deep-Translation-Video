@@ -301,19 +301,381 @@ class AudioProcessorApp:
             for f in os.listdir(folder_path)
             if f.lower().endswith(supported_exts)
         ]
-
-        # 逐一處理檔案
-        for file_path in files:
-            if file_path:
-                self.audio_path_var.set(file_path)
-                self.log(f"已選擇音訊檔案: {file_path}")
-                # 確定文件類型
-                file_ext = os.path.splitext(file_path)[1].lower()                
-                # 清理之前可能存在的臨時檔案    
-                self.cleanup_temp_files()                
-                # 自動設置同一個檔案為參考語音
-                self.speaker_path_var.set(file_path)                
-
+        
+        if not files:
+            self.log("❌ 選擇的資料夾中沒有支援的媒體檔案")
+            messagebox.showerror("錯誤", "選擇的資料夾中沒有支援的媒體檔案")
+            return
+            
+        # 設置輸出目錄
+        output_folder = filedialog.askdirectory(title="選擇輸出資料夾")
+        if not output_folder:
+            self.log("❌ 未選擇輸出資料夾，批處理已取消")
+            return
+            
+        # 檢查參考語音檔案
+        speaker_path = self.speaker_path_var.get()
+        if not speaker_path:
+            self.log("❌ 請先選擇一個參考語音檔案")
+            messagebox.showerror("錯誤", "請先選擇一個參考語音檔案")
+            return
+            
+        # 禁用按鈕並顯示進度條
+        self.process_btn.configure(state=tk.DISABLED)
+        self.play_btn.configure(state=tk.DISABLED)
+        self.save_btn.configure(state=tk.DISABLED)
+        self.progress.start()
+        
+        # 創建輸出目錄(如果不存在)
+        os.makedirs(output_folder, exist_ok=True)
+        
+        # 啟動批處理線程
+        batch_thread = threading.Thread(target=self.process_folder_files, args=(files, output_folder))
+        batch_thread.daemon = True
+        batch_thread.start()
+        
+    def process_folder_files(self, files, output_folder):
+        """批次處理資料夾內的所有檔案"""
+        total_files = len(files)
+        success_count = 0
+        fail_count = 0
+        
+        try:
+            # 載入模型（只載入一次）
+            self.log("🔄 準備批次處理，正在載入模型...")
+            model_size = self.model_size_var.get()
+            device = torch.device("cpu")
+            
+            # 載入Whisper模型
+            if not hasattr(self, 'whisper_model') or self.whisper_model is None:
+                self.log(f"🔄 正在載入Whisper模型 ({model_size})...")
+                self.whisper_model = whisper.load_model(model_size, device=device)
+            
+            for i, file_path in enumerate(files):
+                try:
+                    # 更新狀態
+                    file_name = os.path.basename(file_path)
+                    self.update_status(f"處理檔案 {i+1}/{total_files}: {file_name}")
+                    self.log(f"🔄 開始處理檔案 {i+1}/{total_files}: {file_name}")
+                    
+                    # 清理之前可能存在的臨時檔案
+                    self.cleanup_temp_files()
+                    
+                    # 設置當前檔案為輸入
+                    self.audio_path_var.set(file_path)
+                    
+                    # 確定文件類型
+                    file_ext = os.path.splitext(file_path)[1].lower()
+                    
+                    # 重設提取音訊路徑
+                    self.extracted_audio_path = None
+                    
+                    # 設置媒體類型並從視頻中提取音訊（如果是視頻）
+                    if file_ext in ['.mp4', '.mov', '.mkv']:
+                        self.input_media_type = MEDIA_TYPES["VIDEO"]
+                        self.extract_audio_from_video(file_path)
+                    else:
+                        self.input_media_type = MEDIA_TYPES["AUDIO"]
+                    
+                    # 確定要處理的音訊路徑
+                    audio_for_transcription = file_path
+                    if self.input_media_type == MEDIA_TYPES["VIDEO"] and self.extracted_audio_path:
+                        audio_for_transcription = self.extracted_audio_path
+                        self.log(f"🔄 使用從視頻中提取的音訊進行轉錄")
+                    
+                    # 獲取配置
+                    speaker_path = self.speaker_path_var.get()
+                    lang_mode = self.lang_mode_var.get()
+                    from_lang_code = LANGUAGE_CODES[self.from_lang_var.get()]
+                    to_lang_code = LANGUAGE_CODES[self.to_lang_var.get()]
+                    final_lang_code = LANGUAGE_CODES[self.final_lang_var.get()]
+                    
+                    # 轉錄音訊
+                    self.log(f"🎧 轉錄音訊中: {os.path.basename(audio_for_transcription)}")
+                    lang_config = LANGUAGE_PROMPTS[lang_mode]
+                    result = self.whisper_model.transcribe(audio_for_transcription, prompt=lang_config["prompt"], language=lang_config["language"])
+                    transcription = result['text']
+                    
+                    # 更新UI
+                    self.root.after(0, lambda: self.transcription_text.delete(1.0, tk.END))
+                    self.root.after(0, lambda: self.transcription_text.insert(tk.END, transcription))
+                    self.log(f"📝 轉錄內容: {transcription[:100]}...")
+                    
+                    # 翻譯文本 (第一次)
+                    self.log(f"🌍 翻譯中 ({from_lang_code} → {to_lang_code})...")
+                    translated_middle = self.translate_text(transcription, from_lang_code, to_lang_code)
+                    
+                    # 更新UI
+                    self.root.after(0, lambda: self.translation1_text.delete(1.0, tk.END))
+                    self.root.after(0, lambda: self.translation1_text.insert(tk.END, translated_middle))
+                    
+                    # 翻譯文本 (第二次)
+                    self.log(f"🌍 翻譯中 ({to_lang_code} → {final_lang_code})...")
+                    translated_final = self.translate_text(translated_middle, to_lang_code, final_lang_code)
+                    
+                    # 更新UI
+                    self.root.after(0, lambda: self.translation2_text.delete(1.0, tk.END))
+                    self.root.after(0, lambda: self.translation2_text.insert(tk.END, translated_final))
+                    
+                    # 準備輸出文件名
+                    base_filename = os.path.splitext(os.path.basename(file_path))[0]
+                    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                    
+                    # 獲取選定的輸出類型和格式
+                    output_type = self.output_type_var.get().split(" - ")[0]
+                    format_choice = self.format_var.get().split(" - ")[0]
+                    
+                    # 根據設置確定輸出格式和文件名
+                    if output_type == "AUDIO":
+                        output_format = AUDIO_FORMATS[format_choice]["ext"]
+                        output_filename = f"{base_filename}_{timestamp}.{output_format}"
+                    else:  # VIDEO
+                        output_format = VIDEO_FORMATS[format_choice]["ext"]
+                        output_filename = f"{base_filename}_{timestamp}.{output_format}"
+                    
+                    # 構建完整輸出路徑
+                    output_path = os.path.join(output_folder, output_filename)
+                    
+                    # 合成語音
+                    self.log("🗣️ 開始合成語音...")
+                    self.synthesize_voice_for_batch(translated_final, speaker_path, device, output_path)
+                    
+                    # 如果需要視頻輸出，且輸入是視頻
+                    if output_type == "VIDEO" and self.input_media_type == MEDIA_TYPES["VIDEO"]:
+                        # 使用臨時音訊路徑
+                        temp_audio_path = os.path.join(output_folder, f"temp_{base_filename}_{timestamp}.wav")
+                        if os.path.exists(output_path):
+                            shutil.move(output_path, temp_audio_path)
+                        else:
+                            self.log("⚠️ 中間音訊文件不存在，視頻生成可能失敗")
+                            continue
+                            
+                        # 從處理後的音訊構建視頻
+                        self.log("🎬 正在生成視頻...")
+                        try:
+                            self.create_video_with_new_audio_for_batch(file_path, temp_audio_path, format_choice, output_path)
+                            
+                            # 刪除臨時音訊文件
+                            if os.path.exists(temp_audio_path):
+                                os.remove(temp_audio_path)
+                        except Exception as e:
+                            self.log(f"❌ 視頻生成出錯: {str(e)}")
+                    
+                    success_count += 1
+                    self.log(f"✅ 檔案 {file_name} 處理成功")
+                    
+                except Exception as e:
+                    fail_count += 1
+                    self.log(f"❌ 處理檔案 {os.path.basename(file_path)} 時發生錯誤: {str(e)}")
+            
+            # 批處理完成
+            self.root.after(0, lambda: self.progress.stop())
+            self.root.after(0, lambda: self.update_status("批處理完成"))
+            self.root.after(0, lambda: self.process_btn.configure(state=tk.NORMAL))
+            
+            # 顯示完成訊息
+            summary = f"批處理完成！總共 {total_files} 個檔案，成功 {success_count} 個，失敗 {fail_count} 個"
+            self.log(f"🎉 {summary}")
+            self.root.after(0, lambda: messagebox.showinfo("批處理完成", summary))
+            
+        except Exception as e:
+            self.log(f"❌ 批處理過程中發生錯誤: {str(e)}")
+            self.root.after(0, lambda: self.progress.stop())
+            self.root.after(0, lambda: self.update_status("批處理錯誤"))
+            self.root.after(0, lambda: self.process_btn.configure(state=tk.NORMAL))
+        
+    def synthesize_voice_for_batch(self, text, speaker_wav, device, output_path):
+        """為批處理設計的合成語音方法，直接輸出到指定路徑"""
+        try:
+            # 確保XTTS目錄存在
+            xtts_dir = "XTTS-v2"
+            if not os.path.exists(xtts_dir):
+                self.log(f"❌ 找不到XTTS模型目錄: {xtts_dir}")
+                raise FileNotFoundError(f"找不到XTTS模型目錄: {xtts_dir}")
+            
+            config_path = os.path.join(xtts_dir, "config.json")
+            if not os.path.exists(config_path):
+                self.log(f"❌ 找不到XTTS配置文件: {config_path}")
+                raise FileNotFoundError(f"找不到XTTS配置文件: {config_path}")
+            
+            # 備份原始torch.load函數
+            torch_load_backup = torch.load
+            
+            # 修補torch.load函數
+            def patched_torch_load(f, map_location=None, pickle_module=None, **kwargs):
+                kwargs['weights_only'] = False
+                return torch_load_backup(f, map_location, pickle_module, **kwargs)
+            
+            # 設置load函數
+            torch.load = patched_torch_load
+            
+            # 如果模型尚未載入，則載入XTTS模型
+            xtts_model = None
+            xtts_config = None
+            
+            try:
+                # 配置XTTS
+                self.log("🔄 載入XTTS配置...")
+                config = XttsConfig()
+                config.load_json(config_path)
+                xtts_config = config
+                
+                # 載入XTTS模型
+                self.log("🔄 正在載入XTTS模型...")
+                model = Xtts.init_from_config(config)
+                model.load_checkpoint(config, checkpoint_dir=xtts_dir, eval=True)
+                model.to(device)
+                xtts_model = model
+            except Exception as e:
+                self.log(f"❌ 載入XTTS模型時出錯: {str(e)}")
+                raise e
+            
+            if not os.path.exists(speaker_wav):
+                self.log(f"❌ 找不到參考音訊: {speaker_wav}")
+                raise FileNotFoundError(f"找不到參考音訊: {speaker_wav}")
+            
+            # 最終語言代碼
+            final_lang_code = LANGUAGE_CODES[self.final_lang_var.get()]
+            
+            # 生成合成語音
+            try:
+                self.log("🔊 正在生成合成語音...")
+                
+                outputs = xtts_model.synthesize(
+                    text=text,
+                    config=xtts_config,
+                    speaker_wav=speaker_wav,
+                    gpt_cond_len=3,
+                    language=final_lang_code
+                )
+                
+                if "wav" in outputs:
+                    sr = outputs.get("sample_rate", 24000)
+                    
+                    # 創建臨時目錄
+                    output_temp_dir = tempfile.mkdtemp()
+                    self.temp_files.append(output_temp_dir)
+                    
+                    # 首先保存為 WAV 格式（這是 XTTS 的原始輸出格式）
+                    temp_wav_path = os.path.join(output_temp_dir, "output_temp.wav")
+                    wav_write.write(temp_wav_path, sr, outputs["wav"])
+                    
+                    # 獲取選定的輸出類型和格式
+                    output_type = self.output_type_var.get().split(" - ")[0]
+                    format_choice = self.format_var.get().split(" - ")[0]
+                    
+                    if output_type == "AUDIO":
+                        # 處理音訊輸出
+                        output_format = os.path.splitext(output_path)[1].lower()[1:]
+                        
+                        if output_format == "wav":
+                            # 如果是 WAV 格式，直接複製臨時文件
+                            shutil.copy2(temp_wav_path, output_path)
+                        else:
+                            # 使用 pydub 轉換為其他格式
+                            try:
+                                audio = AudioSegment.from_wav(temp_wav_path)
+                                
+                                # 設置轉換參數
+                                export_params = {}
+                                if output_format == "mp3":
+                                    export_params = {"bitrate": "192k"}
+                                elif output_format == "m4a":
+                                    export_params = {"bitrate": "192k", "format": "ipod"}
+                                elif output_format == "ogg":
+                                    export_params = {"bitrate": "192k"}
+                                
+                                # 導出為所選格式
+                                audio.export(output_path, format=output_format, **export_params)
+                                
+                            except Exception as e:
+                                self.log(f"❌ 格式轉換錯誤: {str(e)}")
+                                # 如果轉換失敗，使用原始 WAV 文件作為備選
+                                wav_output_path = os.path.splitext(output_path)[0] + ".wav"
+                                shutil.copy2(temp_wav_path, wav_output_path)
+                                output_path = wav_output_path
+                        
+                        self.log(f"✅ 成功保存音頻到 {output_path}")
+                    else:
+                        # 視頻處理時，先保存為WAV，稍後在create_video_with_new_audio_for_batch中處理
+                        shutil.copy2(temp_wav_path, output_path)
+                        self.log(f"✅ 成功生成中間音頻文件")
+                else:
+                    self.log("❌ 無法找到音訊資料輸出")
+                    raise Exception("合成過程未生成有效的音訊資料")
+            except Exception as e:
+                self.log(f"❌ 音訊合成時出錯: {str(e)}")
+                raise e
+            finally:
+                # 恢復原始torch.load函數
+                torch.load = torch_load_backup
+            
+        except Exception as e:
+            self.log(f"❌ 語音合成過程中發生錯誤: {str(e)}")
+            raise e
+            
+    def create_video_with_new_audio_for_batch(self, video_path, audio_path, video_format, output_path):
+        """批處理模式下的視頻合成函數"""
+        try:
+            self.log("🔄 正在創建視頻（使用原視頻 + 新音頻）...")
+            
+            # 獲取輸出格式
+            output_format = VIDEO_FORMATS[video_format]["ext"]
+            
+            # 創建臨時目錄
+            temp_dir = tempfile.mkdtemp()
+            self.temp_files.append(temp_dir)
+            
+            # 加載原視頻（但不使用其音頻）
+            video_clip = mp.VideoFileClip(video_path)
+            
+            # 加載新音頻
+            audio_clip = mp.AudioFileClip(audio_path)
+            
+            # 檢查音頻和視頻的時長
+            video_duration = video_clip.duration
+            audio_duration = audio_clip.duration
+            
+            if audio_duration > video_duration:
+                self.log(f"⚠️ 合成的音頻 ({audio_duration:.2f}秒) 比原視頻 ({video_duration:.2f}秒) 長，將重複視頻以匹配音頻長度")
+                # 計算需要重複視頻的次數
+                repeat_times = int(audio_duration / video_duration) + 1
+                # 創建重複視頻
+                repeated_clips = [video_clip] * repeat_times
+                extended_clip = mp.concatenate_videoclips(repeated_clips)
+                # 裁剪到音頻長度
+                video_clip = extended_clip.subclip(0, audio_duration)
+            elif video_duration > audio_duration:
+                self.log(f"⚠️ 原視頻 ({video_duration:.2f}秒) 比合成的音頻 ({audio_duration:.2f}秒) 長，將裁剪視頻以匹配音頻長度")
+                video_clip = video_clip.subclip(0, audio_duration)
+            
+            # 設置新音頻
+            final_clip = video_clip.set_audio(audio_clip)
+            
+            # 保存視頻
+            final_clip.write_videofile(
+                output_path, 
+                codec='libx264',
+                audio_codec='aac', 
+                temp_audiofile=os.path.join(temp_dir, "temp_audio.m4a"),
+                remove_temp=True
+            )
+            
+            self.log(f"✅ 成功生成視頻到 {output_path}")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ 創建視頻時出錯: {str(e)}")
+            # 如果視頻生成失敗，回退到僅保存音頻
+            output_format = "wav"
+            fallback_path = os.path.splitext(output_path)[0] + ".wav"
+            try:
+                shutil.copy2(audio_path, fallback_path)
+                self.log(f"⚠️ 視頻創建失敗，已保存音頻到 {fallback_path}")
+            except:
+                self.log("❌ 無法保存後備音頻文件")
+            return False
+    
     def browse_input_file(self):
         """瀏覽並選擇輸入檔案（音訊或視頻）"""
         file_path = filedialog.askopenfilename(
@@ -453,8 +815,7 @@ class AudioProcessorApp:
             lang_mode = self.lang_mode_var.get()
             from_lang_code = LANGUAGE_CODES[self.from_lang_var.get()]
             to_lang_code = LANGUAGE_CODES[self.to_lang_var.get()]
-            final_lang_code = LANGUAGE_CODES[self.final_lang_var.get()]
-            
+            final_lang_code = LANGUAGE_CODES[self.final_lang_var.get()]            
             self.log(f"🔧 使用模型: {model_size}, 語言模式: {lang_mode}")
             self.log(f"🔧 翻譯路徑: {from_lang_code} → {to_lang_code} → {final_lang_code}")
             
